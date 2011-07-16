@@ -655,6 +655,7 @@ MonkeyConfig.res.stylesheets = {
 body.__MonkeyConfig_window {\
     appearance: window !important;\
     -moz-appearance: window !important;\
+    background: auto;\
     font-family: sans-serif !important;\
     height: 100% !important;\
     margin: 0 !important;\
@@ -663,16 +664,16 @@ body.__MonkeyConfig_window {\
 }\
 \
 div.__MonkeyConfig_container {\
-    xappearance: window !important;\
-    x-moz-appearance: window !important;\
     display: table !important;\
     font-family: sans-serif !important;\
     padding: 0.3em !important;\
 }\
 \
-body.__MonkeyConfig div.__MonkeyConfig_container {\
+body.__MonkeyConfig_window div.__MonkeyConfig_container {\
     appearance: window !important;\
     -moz-appearance: window !important;\
+    height: 100%;\
+    width: 100%;\
 }\
 \
 div.__MonkeyConfig_container h1 {\
@@ -736,7 +737,7 @@ div.__MonkeyConfig_layer {\
 }\
 \
 div.__MonkeyConfig_layer div.__MonkeyConfig_container,\
-body > div.__MonkeyConfig_container {\
+body.__MonkeyConfig_body > div.__MonkeyConfig_container {\
     background: #eee -moz-linear-gradient(center top,\
         #f8f8f8 0, #ddd 100%) !important;\
     -moz-border-radius: 0.5em !important;\
