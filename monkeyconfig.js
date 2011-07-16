@@ -7,7 +7,7 @@
 
 /*
  * MonkeyConfig
- * version 0.1
+ * version 0.1.1
  * 
  * Copyright (c) 2011 Michal Wojciechowski (odyniec.net)
  */
@@ -80,7 +80,9 @@ function MonkeyConfig() {
                 set(name, storedValues[name]);            
             /* Otherwise, set the default value (if defined) */
             else if (params[name]['default'] !== undefined)
-                set(name, params[name].default);
+                set(name, params[name]['default']);
+            else
+                set(name, '');
         }
         
         if (data.menuCommand) {
@@ -197,7 +199,7 @@ function MonkeyConfig() {
                 switch (params[name].type) {
                 case 'checkbox':
                     var elem = container.querySelector('[name="' + name + '"]');
-                    elem.checked = value;
+                    elem.checked = !!value;
                     break;
                 case 'custom':
                     params[name].set(value, container
@@ -276,10 +278,28 @@ function MonkeyConfig() {
     /**
      * Open configuration dialog
      * 
-     * @param mode Display mode ("layer" or "window", defaults to "layer")
-     * @param options Display mode options
+     * @param mode
+     *            Display mode ("iframe", "layer", or "window", defaults to
+     *            "iframe")
+     * @param options
+     *            Display mode options
      */
     function open(mode, options) {
+        function openDone() {
+            /* Attach button event handlers */
+            var button;
+            
+            if (button = container.querySelector('#__MonkeyConfig_button_save'))
+                button.addEventListener('click', saveClick, true);
+            if (button = container.querySelector('#__MonkeyConfig_button_cancel'))
+                button.addEventListener('click', cancelClick, true);
+            if (button = container.querySelector('#__MonkeyConfig_button_defaults'))
+                button.addEventListener('click', defaultsClick, true);
+            
+            displayed = true;
+            update();
+        }
+        
         switch (mode) {
         case 'window':        
             var windowFeatures = {
@@ -311,7 +331,7 @@ function MonkeyConfig() {
                 '<style type="text/css">' +
                 MonkeyConfig.res.stylesheets.main + '</style>';
             
-            body.className = '__MonkeyConfig';
+            body.className = '__MonkeyConfig_window';
             /* Place the rendered configuration dialog inside the window body */
             body.innerHTML = render();
 
@@ -328,15 +348,16 @@ function MonkeyConfig() {
             
             openWin = win;
             
+            openDone();
+            
             break;
-        default: /* 'layer' */
+        case 'layer':
             GM_addStyle(MonkeyConfig.res.stylesheets.main);
             
             var body = document.querySelector('body');
             
             /* Create the layer element */
             openLayer = document.createElement('div');
-            
             openLayer.className = '__MonkeyConfig_layer';
             
             /* Create the overlay */
@@ -365,21 +386,83 @@ function MonkeyConfig() {
             
             container = document.querySelector('.__MonkeyConfig_container');
             
+            openDone();
+            
+            break;
+        case 'iframe':
+        default:
+            GM_addStyle(MonkeyConfig.res.stylesheets.main);
+        
+            var body = document.querySelector('body');
+            var iframe = document.createElement('iframe');
+            
+            /* Create the layer element */
+            openLayer = document.createElement('div');
+            openLayer.className = '__MonkeyConfig_layer';
+            
+            /* Create the overlay */
+            overlay = document.createElement('div');
+            overlay.className = '__MonkeyConfig_overlay';
+            overlay.style.left = 0;
+            overlay.style.top = 0;
+            overlay.style.width = window.innerWidth + 'px';
+            overlay.style.height = window.innerHeight + 'px';
+            overlay.style.zIndex = 9999;
+            
+            iframe.id = '__MonkeyConfig_frame';
+            /* 
+             * Make the iframe transparent so that it remains invisible until
+             * the document inside it is ready
+             */
+            iframe.style.opacity = 0;
+            iframe.src = 'about:blank';
+            
+            /* Make the iframe seamless with no border and no scrollbars */ 
+            if (undefined !== iframe.frameborder)
+                iframe.frameBorder = '0';
+            if (undefined !== iframe.scrolling)
+                iframe.scrolling = 'no';
+            if (undefined !== iframe.seamless)
+                iframe.seamless = true;
+            
+            /* Do the rest in the load event handler */
+            iframe.addEventListener('load', function () {
+                iframe.contentDocument.body.innerHTML = render();
+                iframe.style.opacity = 1;
+                
+                /* Append the style to the head */
+                var head = iframe.contentDocument.querySelector('head'),
+                    style = iframe.contentDocument.createElement('style');
+                style.setAttribute('type', 'text/css');
+                style.appendChild(iframe.contentDocument.createTextNode(
+                        MonkeyConfig.res.stylesheets.main));
+                head.appendChild(style);
+                
+                var body = iframe.contentDocument.querySelector('body');
+                body.className = '__MonkeyConfig_body';
+                
+                container = iframe.contentDocument
+                    .querySelector('.__MonkeyConfig_container');
+
+                iframe.width = container.clientWidth;
+                iframe.height = container.clientHeight;
+                
+                /* Position the layer in the center of the viewport */
+                openLayer.style.left = Math.round((window.innerWidth -
+                        openLayer.clientWidth) / 2) + 'px';
+                openLayer.style.top = Math.round((window.innerHeight -
+                        openLayer.clientHeight) / 2) + 'px';
+                openLayer.style.zIndex = 9999;
+                
+                openDone();
+            }, false);
+            
+            body.appendChild(overlay);         
+            body.appendChild(openLayer);
+            openLayer.appendChild(iframe);
+        
             break;
         }
-        
-        /* Attach button event handlers */
-        var button;
-        
-        if (button = container.querySelector('#__MonkeyConfig_button_save'))
-            button.addEventListener('click', saveClick, true);
-        if (button = container.querySelector('#__MonkeyConfig_button_cancel'))
-            button.addEventListener('click', cancelClick, true);
-        if (button = container.querySelector('#__MonkeyConfig_button_defaults'))
-            button.addEventListener('click', defaultsClick, true);
-        
-        displayed = true;
-        update();
     }
     
     /**
@@ -446,7 +529,7 @@ MonkeyConfig.HTML = {
         var choices = {}, html = '';
         
         if (options.choices.constructor == Array) {
-            /* options.choices is an array */
+            /* options.choices is an array -- build key/value pairs */
             for (var i = 0; i < options.choices.length; i++)
                 choices[options.choices[i]] = options.choices[i];
         }
@@ -485,10 +568,17 @@ MonkeyConfig.HTML = {
         return html;
     },
     'text': function (name, options, data) {
-        return '<input id="__MonkeyConfig_field_' + name + '" type="text" ' +
-            'class="__MonkeyConfig_field_text" ' +
-            'name="' + name + '" ' +
-            'value="' + (options.value || options['default'] || '') + '" />';
+        if (options.long)
+            return '<textarea id="__MonkeyConfig_field_' + name + '" ' +
+                'class="__MonkeyConfig_field_text" ' +
+                (!isNaN(options.long) ? 'rows="' + options.long + '" ' : '') +
+                'name="' + name + '">' +
+                (options.value || options['default'] || '') + '</textarea>';
+        else
+            return '<input id="__MonkeyConfig_field_' + name + '" type="text" ' +
+                'class="__MonkeyConfig_field_text" ' +
+                'name="' + name + '" ' +
+                'value="' + (options.value || options['default'] || '') + '" />';
     }
 };
 
@@ -562,146 +652,164 @@ l2t8Bb6iqTxSCgNIAAAAAElFTkSuQmCC'
 /* Stylesheets */
 MonkeyConfig.res.stylesheets = {
     'main': '\
-body.__MonkeyConfig {\
-    appearance: window;\
-    -moz-appearance: window;\
-    font-family: sans-serif;\
-    height: 100%;\
-    margin: 0;\
-    padding: 0;\
-    width: 100%;\
+body.__MonkeyConfig_window {\
+    appearance: window !important;\
+    -moz-appearance: window !important;\
+    font-family: sans-serif !important;\
+    height: 100% !important;\
+    margin: 0 !important;\
+    padding: 0 !important;\
+    width: 100% !important;\
 }\
 \
 div.__MonkeyConfig_container {\
-    xappearance: window;\
-    x-moz-appearance: window;\
-    display: table;\
-    font-family: sans-serif;\
-    padding: 0.3em;\
+    xappearance: window !important;\
+    x-moz-appearance: window !important;\
+    display: table !important;\
+    font-family: sans-serif !important;\
+    padding: 0.3em !important;\
 }\
 \
 body.__MonkeyConfig div.__MonkeyConfig_container {\
-    appearance: window;\
-    -moz-appearance: window;\
+    appearance: window !important;\
+    -moz-appearance: window !important;\
 }\
 \
 div.__MonkeyConfig_container h1 {\
-    border-bottom: solid 1px #999;\
-    font-family: sans-serif;\
-    font-size: 120%;\
-    margin: 0;\
-    padding: 0 0 0.3em 0;\
+    border-bottom: solid 1px #999 !important;\
+    font-family: sans-serif !important;\
+    font-size: 120% !important;\
+    margin: 0 !important;\
+    padding: 0 0 0.3em 0 !important;\
 }\
 \
 div.__MonkeyConfig_container table {\
-    border-spacing: 0;\
+    border-spacing: 0 !important;\
+    margin: 0 !important;\
 }\
 \
 div.__MonkeyConfig_container table td {\
-    line-height: 100%;\
-    padding: 0.3em;\
-    text-align: left;\
-    vertical-align: text-top;\
-}\
-\
-div.__MonkeyConfig_container table td.__MonkeyConfig_buttons {\
-    padding: 0.2em 0;\
-}\
-\
-.__MonkeyConfig_field_number {\
-    width: 5em;\
-}\
-\
-div.__MonkeyConfig_container td.__MonkeyConfig_buttons table {\
-    border-top: solid 1px #999;\
-    width: 100%;\
-}\
-\
-div.__MonkeyConfig_container td.__MonkeyConfig_buttons td {\
-    padding: 0.6em 0.3em 0.1em 0.3em;\
-    text-align: center;\
-}\
-\
-div.__MonkeyConfig_container td.__MonkeyConfig_buttons button {\
-    appearance: button;\
-    -moz-appearance: button;\
-    background-position: 8px 50%;\
-    background-repeat: no-repeat;\
-    padding: 3px 8px 3px 24px;\
-    padding: 3px 8px;\
+    border: none !important;\
+    line-height: 100% !important;\
+    padding: 0.3em !important;\
+    text-align: left !important;\
+    vertical-align: text-top !important;\
     white-space: nowrap;\
 }\
 \
+div.__MonkeyConfig_container table td.__MonkeyConfig_buttons {\
+    padding: 0.2em 0 !important;\
+}\
+\
+.__MonkeyConfig_field_number {\
+    width: 5em !important;\
+}\
+\
+div.__MonkeyConfig_container td.__MonkeyConfig_buttons table {\
+    border-top: solid 1px #999 !important;\
+    width: 100% !important;\
+}\
+\
+div.__MonkeyConfig_container td.__MonkeyConfig_buttons td {\
+    padding: 0.6em 0.3em 0.1em 0.3em !important;\
+    text-align: center !important;\
+    vertical-align: top;\
+}\
+\
+div.__MonkeyConfig_container td.__MonkeyConfig_buttons button {\
+    appearance: button !important;\
+    -moz-appearance: button !important;\
+    background-position: 8px 50% !important;\
+    background-repeat: no-repeat !important;\
+    padding: 3px 8px 3px 24px !important;\
+    padding: 3px 8px !important;\
+    white-space: nowrap !important;\
+}\
+\
 div.__MonkeyConfig_container td.__MonkeyConfig_buttons button img {\
-    vertical-align: middle;\
-}\
-\
-button#__MonkeyConfig_button_cancel {\
-    xbackground-image: url("data:image/png;base64,' + MonkeyConfig.res.icons.cancel + '");\
-}\
-\
-button#__MonkeyConfig_button_defaults {\
-    xbackground-image: url("data:image/png;base64,' + MonkeyConfig.res.icons.arrow_undo + '");\
-}\
-\
-button#__MonkeyConfig_button_save {\
-    xbackground-image: url("data:image/png;base64,' + MonkeyConfig.res.icons.tick + '");\
+    vertical-align: middle !important;\
 }\
 \
 div.__MonkeyConfig_layer {\
-    display: table;\
-    position: fixed;\
+    display: table !important;\
+    position: fixed !important;\
 }\
 \
-div.__MonkeyConfig_layer div.__MonkeyConfig_container {\
+div.__MonkeyConfig_layer div.__MonkeyConfig_container,\
+body > div.__MonkeyConfig_container {\
     background: #eee -moz-linear-gradient(center top,\
-        #f8f8f8 0, #ddd 100%);\
-    -moz-border-radius: 0.5em;\
-    -moz-box-shadow: 2px 2px 16px #000;\
-    color: #000;\
-    font-family: sans-serif;\
-    font-size: 11pt;\
-    padding: 1em 1em 0.4em 1em;\
+        #f8f8f8 0, #ddd 100%) !important;\
+    -moz-border-radius: 0.5em !important;\
+    -moz-box-shadow: 2px 2px 16px #000 !important;\
+    color: #000 !important;\
+    font-family: sans-serif !important;\
+    font-size: 11pt !important;\
+    padding: 1em 1em 0.4em 1em !important;\
 }\
 \
 div.__MonkeyConfig_layer div.__MonkeyConfig_container td,\
 div.__MonkeyConfig_layer div.__MonkeyConfig_container label,\
 div.__MonkeyConfig_layer div.__MonkeyConfig_container input,\
 div.__MonkeyConfig_layer div.__MonkeyConfig_container select,\
+div.__MonkeyConfig_layer div.__MonkeyConfig_container textarea,\
 div.__MonkeyConfig_layer div.__MonkeyConfig_container button {\
-    color: #000;\
-    font-family: sans-serif;\
-    font-size: 11pt;\
-    line-height: 100%;\
+    color: #000 !important;\
+    font-family: sans-serif !important;\
+    font-size: 11pt !important;\
+    line-height: 100% !important;\
+    margin: 0 !important;\
+}\
+\
+div.__MonkeyConfig_container textarea {\
+    vertical-align: text-top !important;\
+    width: 100%;\
+}\
+\
+div.__MonkeyConfig_layer div.__MonkeyConfig_container input[type="text"] {\
+    appearance: textfield !important;\
+    -moz-appearance: textfield !important;\
+    background: #fff !important;\
 }\
 \
 div.__MonkeyConfig_layer div.__MonkeyConfig_container h1 {\
-    font-weight: bold;\
-    text-align: left;\
+    font-weight: bold !important;\
+    text-align: left !important;\
 }\
 \
-div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons button {\
-    appearance: button;\
-    -moz-appearance: button;\
+div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons button,\
+body > div.__MonkeyConfig_container td.__MonkeyConfig_buttons button {\
+    appearance: button !important;\
+    -moz-appearance: button !important;\
     background: #ccc -moz-linear-gradient(center top,\
-        #ddd 0, #ccc 45%, #bbb 50%, #aaa 100%);\
-    border-style: solid;\
-    border-width: 1px;\
-    -moz-border-radius: 0.5em;\
-    -moz-box-shadow: 0 0 1px #000;\
-    color: #000;\
-    font-size: 11pt;\
+        #ddd 0, #ccc 45%, #bbb 50%, #aaa 100%) !important;\
+    border-style: solid !important;\
+    border-width: 1px !important;\
+    -moz-border-radius: 0.5em !important;\
+    -moz-box-shadow: 0 0 1px #000 !important;\
+    color: #000 !important;\
+    font-size: 11pt !important;\
 }\
 \
-div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons button:hover {\
+div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons button:hover,\
+body > div.__MonkeyConfig_container td.__MonkeyConfig_buttons button:hover {\
     background: #d2d2d2 -moz-linear-gradient(center top,\
-        #e2e2e2 0, #d2d2d2 45%, #c2c2c2 50%, #b2b2b2 100%);\
+        #e2e2e2 0, #d2d2d2 45%, #c2c2c2 50%, #b2b2b2 100%) !important;\
 }\
 \
 div.__MonkeyConfig_overlay {\
-    background-color: #000;\
-    opacity: 0.6;\
-    position: fixed;\
+    background-color: #000 !important;\
+    opacity: 0.6 !important;\
+    position: fixed !important;\
+}\
+\
+iframe#__MonkeyConfig_frame {\
+    border: none !important;\
+    -moz-box-shadow: 2px 2px 16px #000 !important;\
+}\
+\
+body.__MonkeyConfig_body {\
+    margin: 0 !important;\
+    padding: 0 !important;\
 }\
 '
 };

@@ -17,7 +17,7 @@ the metadata section:
 // @require        https://raw.github.com/odyniec/MonkeyConfig/master/monkeyconfig.js
 ```
 
-Then, call MonkeyConfig to construct your configuration object:
+Then, call `MonkeyConfig()` to construct your configuration object:
 
 ```javascript
 var cfg = new MonkeyConfig({
