@@ -352,7 +352,10 @@ function MonkeyConfig() {
             
             break;
         case 'layer':
-            GM_addStyle(MonkeyConfig.res.stylesheets.main);
+            if (!MonkeyConfig.styleAdded) {
+                GM_addStyle(MonkeyConfig.res.stylesheets.main);
+                MonkeyConfig.styleAdded = true;
+            }
             
             var body = document.querySelector('body');
             
@@ -391,7 +394,10 @@ function MonkeyConfig() {
             break;
         case 'iframe':
         default:
-            GM_addStyle(MonkeyConfig.res.stylesheets.main);
+            if (!MonkeyConfig.styleAdded) {
+                GM_addStyle(MonkeyConfig.res.stylesheets.main);
+                MonkeyConfig.styleAdded = true;
+            }
         
             var body = document.querySelector('body');
             var iframe = document.createElement('iframe');
@@ -608,6 +614,9 @@ MonkeyConfig.formatters = {
         return html;
     }
 };
+
+/* Has the stylesheet been added? */
+MonkeyConfig.styleAdded = false;
 
 /* Resources */
 MonkeyConfig.res = {};
