@@ -7,7 +7,7 @@
 
 /*
  * MonkeyConfig
- * version 0.1.1
+ * version 0.1.2
  * 
  * Copyright (c) 2011 Michal Wojciechowski (odyniec.net)
  */
@@ -128,10 +128,8 @@ function MonkeyConfig() {
      */ 
     function setDefaults() {
         for (var name in params) {
-            var value;
-            
-            if ((value = params[name]['default']) !== undefined) {
-                set(name, value);
+            if (typeof params[name]['default'] !== 'undefined') {
+                set(name, params[name]['default']);
             }
         }
     }
@@ -192,35 +190,62 @@ function MonkeyConfig() {
      * Update the fields in the dialog to reflect current values 
      */
     function update() {
-        if (displayed)
-            for (var name in params) {
-                var value = values[name];
+        /* Do nothing if the dialog is not currently displayed */
+        if (!displayed)
+            return;
+        
+        for (var name in params) {
+            var value = values[name];
+            
+            switch (params[name].type) {
+            case 'checkbox':
+                var elem = container.querySelector('[name="' + name + '"]');
+                elem.checked = !!value;
+                break;
+            case 'custom':
+                params[name].set(value, container
+                        .querySelector('#__MonkeyConfig_parent_' + name));
+                break;
+            case 'number': case 'text':
+                var elem = container.querySelector('[name="' + name + '"]');
+                elem.value = value;
+                break;
+            case 'select':
+                var elem = container.querySelector('[name="' + name + '"]');
                 
-                switch (params[name].type) {
-                case 'checkbox':
-                    var elem = container.querySelector('[name="' + name + '"]');
-                    elem.checked = !!value;
-                    break;
-                case 'custom':
-                    params[name].set(value, container
-                            .querySelector('#__MonkeyConfig_parent_' + name));
-                    break;
-                case 'number': case 'text':
-                    var elem = container.querySelector('[name="' + name + '"]');
-                    elem.value = value;
-                    break;
-                case 'select':
-                    var elem = container.querySelector('[name="' + name + '"]');
+                if (elem.tagName.toLowerCase() == 'input') {
                     if (elem.type && elem.type == 'radio') {
-                        elem = container.querySelector('[name="' + name + '"]' +
-                            '[value="' + value + '"]');
+                        /* Single selection with radio buttons */
+                        elem = container.querySelector(
+                            '[name="' + name + '"][value="' + value + '"]');
                         elem.checked = true;
                     }
-                    else
-                        elem.value = value;
-                    break;
+                    else if (elem.type && elem.type == 'checkbox') {
+                        /* Multiple selection with checkboxes */
+                        var checkboxes = container.querySelectorAll(
+                            'input[name="' + name + '"]');
+
+                        for (var i = 0; i < checkboxes.length; i++)
+                            checkboxes[i].checked = 
+                                (value.indexOf(checkboxes[i].value) > -1);
+                    }
                 }
+                else if (elem.tagName.toLowerCase() == 'select')
+                    if (elem.multiple) {
+                        /* Multiple selection element */
+                        var options = container.querySelectorAll(
+                            'select[name="' + name + '"] option');
+                            
+                        for (var i = 0; i < options.length; i++)
+                            options[i].selected =
+                                (value.indexOf(options[i].value) > -1);
+                    }
+                    else
+                        /* Single selection element */
+                        elem.value = value;
+                break;
             }
+        }
     }
     
     /**
@@ -243,9 +268,33 @@ function MonkeyConfig() {
                 break;
             case 'select':
                 var elem = container.querySelector('[name="' + name + '"]');
-                if (elem.type && elem.type == 'radio')
-                    values[name] = container
-                        .querySelector('[name="' + name + '"]:checked').value;
+
+                if (elem.tagName.toLowerCase() == 'input') {
+                    if (elem.type && elem.type == 'radio')
+                        /* Single selection with radio buttons */
+                        values[name] = container.querySelector(
+                            '[name="' + name + '"]:checked').value;
+                    else if (elem.type && elem.type == 'checkbox') {
+                        /* Multiple selection with checkboxes */
+                        values[name] = [];
+                        var inputs = container.querySelectorAll(
+                            'input[name="' + name + '"]');
+
+                        for (var i = 0; i < inputs.length; i++)
+                            if (inputs[i].checked)
+                                values[name].push(inputs[i].value);
+                    }
+                }
+                else if (elem.tagName.toLowerCase() == 'select' && elem.multiple) {
+                    /* Multiple selection element */
+                    values[name] = [];
+                    var options = container.querySelectorAll(
+                        'select[name="' + name + '"] option');
+
+                    for (var i = 0; i < options.length; i++)
+                        if (options[i].selected)
+                            values[name].push(options[i].value);
+                }
                 else
                     values[name] = elem.value;
                 break;
@@ -495,6 +544,17 @@ function MonkeyConfig() {
     init(arguments[0]);
 }
 
+/**
+ * Replace double quotes with entities so that the string can be safely used
+ * in a HTML attribute
+ * 
+ * @param string A string
+ * @returns String with double quotes replaced with entities
+ */
+MonkeyConfig.esc = function (string) {
+    return string.replace(/"/g, '&quot;');
+};
+
 MonkeyConfig.HTML = {
     '_field': function (name, options, data) {
         var html;
@@ -526,10 +586,9 @@ MonkeyConfig.HTML = {
         return options.html;
     },
     'number': function (name, options, data) {
-        return '<input id="__MonkeyConfig_field_' + name + '" type="text" ' +
-            'class="__MonkeyConfig_field_number" ' +
-            'name="' + name + '" ' +
-            'value="' + (options.value || options['default'] || '') + '" />';
+        return '<input id="__MonkeyConfig_field_' + name + '" ' +
+            'type="text" class="__MonkeyConfig_field_number" ' +
+            'name="' + name + '" />';
     },
     'select': function (name, options, data) {
         var choices = {}, html = '';
@@ -542,32 +601,55 @@ MonkeyConfig.HTML = {
         else
             /* options.choices is an object -- use it as it is */
             choices = options.choices;
-        
-        if (!/^radio/.test(options.variant)) {
-            html += '<select id="__MonkeyConfig_field_' + name + '" ' +
-                'class="__MonkeyConfig_field_select" ' +
-                'name="' + name + '">';
-        
-            for (var value in choices)
-                html += '<option value="' + value + '">' + choices[value] +
-                    '</option>';
+
+        if (!options.multiple) {
+            /* Single selection */
+            if (!/^radio/.test(options.variant)) {
+                /* Select element */
+                html += '<select id="__MonkeyConfig_field_' + name + '" ' +
+                    'class="__MonkeyConfig_field_select" ' +
+                    'name="' + name + '">';
             
-            html += '</select>';
+                for (var value in choices)
+                    html += '<option value="' + MonkeyConfig.esc(value) + '">' +
+                        choices[value] + '</option>';
+                
+                html += '</select>';
+            }
+            else {
+                /* Radio buttons */
+                for (var value in choices) {
+                    html += '<label><input type="radio" name="' + name + '" ' +
+                        'value="' + MonkeyConfig.esc(value) + '" />&nbsp;' +
+                        choices[value] + '</label>' +
+                        (/ column/.test(options.variant) ? '<br />' : '');
+                }
+            }
         }
         else {
-            for (var value in choices) {
-                var checked = false;
+            /* Multiple selection */
+            if (!/^checkbox/.test(options.variant)) {
+                /* Checkboxes */
+                html += '<select id="__MonkeyConfig_field_' + name + '" ' +
+                    'class="__MonkeyConfig_field_select" ' +
+                    'multiple="multiple" ' +
+                    'name="' + name + '">';
                 
-                if (options.value !== undefined)
-                    checked = options.value == value;
-                else if (options['default'] !== undefined)
-                    checked = options['default'] == value;
+                for (var value in choices)
+                    html += '<option value="' + MonkeyConfig.esc(value) + '">' +
+                        choices[value] + '</option>';
                 
-                html += '<label><input type="radio" ' +
-                    (checked ? 'checked="checked" ' : '') +
-                    'name="' + name + '" value="' + value + '" />&nbsp;' +
-                    choices[value] + '</label>' +
-                    (/ column/.test(options.variant) ? '<br />' : '');
+                html += '</select>';
+            }
+            else {
+                /* Select element */
+                for (var value in choices) {
+                    html += '<label><input type="checkbox" ' +
+                        'name="' + name + '" ' +
+                        'value="' + MonkeyConfig.esc(value) + '" />&nbsp;' +
+                        choices[value] + '</label>' +
+                        (/ column/.test(options.variant) ? '<br />' : '');
+                }
             }
         }
         
@@ -578,13 +660,11 @@ MonkeyConfig.HTML = {
             return '<textarea id="__MonkeyConfig_field_' + name + '" ' +
                 'class="__MonkeyConfig_field_text" ' +
                 (!isNaN(options.long) ? 'rows="' + options.long + '" ' : '') +
-                'name="' + name + '">' +
-                (options.value || options['default'] || '') + '</textarea>';
+                'name="' + name + '"></textarea>';
         else
-            return '<input id="__MonkeyConfig_field_' + name + '" type="text" ' +
-                'class="__MonkeyConfig_field_text" ' +
-                'name="' + name + '" ' +
-                'value="' + (options.value || options['default'] || '') + '" />';
+            return '<input id="__MonkeyConfig_field_' + name + '" ' +
+                'type="text" class="__MonkeyConfig_field_text" ' +
+                'name="' + name + '" />';
     }
 };
 
@@ -703,8 +783,8 @@ div.__MonkeyConfig_container table td {\
     line-height: 100% !important;\
     padding: 0.3em !important;\
     text-align: left !important;\
-    vertical-align: text-top !important;\
-    white-space: nowrap;\
+    vertical-align: top !important;\
+    white-space: nowrap !important;\
 }\
 \
 div.__MonkeyConfig_container table td.__MonkeyConfig_buttons {\
@@ -768,6 +848,12 @@ div.__MonkeyConfig_layer div.__MonkeyConfig_container button {\
     font-size: 11pt !important;\
     line-height: 100% !important;\
     margin: 0 !important;\
+    vertical-align: baseline !important;\
+}\
+\
+div.__MonkeyConfig_container label {\
+    line-height: 120% !important;\
+    vertical-align: baseline !important;\
 }\
 \
 div.__MonkeyConfig_container textarea {\
