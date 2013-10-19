@@ -7,9 +7,9 @@
 
 /*
  * MonkeyConfig
- * version 0.1.2
+ * version 0.1.3
  * 
- * Copyright (c) 2011 Michal Wojciechowski (odyniec.net)
+ * Copyright (c) 2011-2013 Michal Wojciechowski (odyniec.net)
  */
 
 function MonkeyConfig() {
@@ -84,7 +84,7 @@ function MonkeyConfig() {
             else
                 set(name, '');
         }
-        
+
         if (data.menuCommand) {
             /* Add an item to the User Script Commands menu */
             var caption = data.menuCommand !== true ? data.menuCommand :
@@ -142,8 +142,8 @@ function MonkeyConfig() {
             '<h1>' + data.title + '</h1>' +
             '<table>';
 
-        for (name in params)
-            html += MonkeyConfig.formatters['tr'](name, params[name]);
+        for (var name in params) {
+            html += MonkeyConfig.formatters['tr'](name, params[name]);}
 
         html += '<tr><td colspan="2" class="__MonkeyConfig_buttons">' +
                 '<table><tr>';
@@ -501,7 +501,7 @@ function MonkeyConfig() {
 
                 iframe.width = container.clientWidth;
                 iframe.height = container.clientHeight;
-                
+
                 /* Position the layer in the center of the viewport */
                 openLayer.style.left = Math.round((window.innerWidth -
                         openLayer.clientWidth) / 2) + 'px';
@@ -511,6 +511,18 @@ function MonkeyConfig() {
                 
                 openDone();
             }, false);
+
+            setTimeout(function () {
+                iframe.width = container.clientWidth;
+                iframe.height = container.clientHeight;
+                
+                /* Position the layer in the center of the viewport */
+                openLayer.style.left = Math.round((window.innerWidth -
+                        openLayer.clientWidth) / 2) + 'px';
+                openLayer.style.top = Math.round((window.innerHeight -
+                        openLayer.clientHeight) / 2) + 'px';
+                openLayer.style.zIndex = 9999;
+            }, 0);
             
             body.appendChild(overlay);         
             body.appendChild(openLayer);
@@ -827,10 +839,10 @@ div.__MonkeyConfig_layer {\
 \
 div.__MonkeyConfig_layer div.__MonkeyConfig_container,\
 body.__MonkeyConfig_body > div.__MonkeyConfig_container {\
-    background: #eee -moz-linear-gradient(center top,\
+    background: #eee linear-gradient(180deg,\
         #f8f8f8 0, #ddd 100%) !important;\
-    -moz-border-radius: 0.5em !important;\
-    -moz-box-shadow: 2px 2px 16px #000 !important;\
+    border-radius: 0.5em !important;\
+    box-shadow: 2px 2px 16px #000 !important;\
     color: #000 !important;\
     font-family: sans-serif !important;\
     font-size: 11pt !important;\
@@ -876,19 +888,19 @@ div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons 
 body > div.__MonkeyConfig_container td.__MonkeyConfig_buttons button {\
     appearance: button !important;\
     -moz-appearance: button !important;\
-    background: #ccc -moz-linear-gradient(center top,\
+    background: #ccc linear-gradient(180deg,\
         #ddd 0, #ccc 45%, #bbb 50%, #aaa 100%) !important;\
     border-style: solid !important;\
     border-width: 1px !important;\
-    -moz-border-radius: 0.5em !important;\
-    -moz-box-shadow: 0 0 1px #000 !important;\
+    border-radius: 0.5em !important;\
+    box-shadow: 0 0 1px #000 !important;\
     color: #000 !important;\
     font-size: 11pt !important;\
 }\
 \
 div.__MonkeyConfig_layer div.__MonkeyConfig_container td.__MonkeyConfig_buttons button:hover,\
 body > div.__MonkeyConfig_container td.__MonkeyConfig_buttons button:hover {\
-    background: #d2d2d2 -moz-linear-gradient(center top,\
+    background: #d2d2d2 linear-gradient(180deg,\
         #e2e2e2 0, #d2d2d2 45%, #c2c2c2 50%, #b2b2b2 100%) !important;\
 }\
 \
@@ -900,7 +912,7 @@ div.__MonkeyConfig_overlay {\
 \
 iframe#__MonkeyConfig_frame {\
     border: none !important;\
-    -moz-box-shadow: 2px 2px 16px #000 !important;\
+    box-shadow: 2px 2px 16px #000 !important;\
 }\
 \
 body.__MonkeyConfig_body {\
