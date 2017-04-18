@@ -48,15 +48,19 @@ function MonkeyConfig() {
 
             if (data.title === undefined)
                 /*
-                 * If GM_getMetadata is available, get the name of the script
+                 * If GM_getMetadata or GM_info are available, get the name of the script
                  * and use it in the dialog title
                  */
-                if (typeof GM_getMetadata == 'function') {
-                    var scriptName = GM_getMetadata('name');
-                    data.title = scriptName + ' Configuration';
+                var scriptName;
+
+                if (typeof GM_getMetadata === 'function') { // Scriptish
+                    scriptName = GM_getMetadata('name');
                 }
-                else
-                    data.title = 'Configuration';
+                else if (typeof GM_info !== 'undefined') { // Greasemonkey, Tampermonkey &c.
+                    scriptName = GM_info.script.name;
+                }
+
+                data.title = (scriptName ? scriptName + ' ' : '') + 'Configuration';
         }
 
         /* Make a safe version of title to be used as stored value identifier */
