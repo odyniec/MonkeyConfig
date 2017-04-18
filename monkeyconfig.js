@@ -8,7 +8,7 @@
 /*
  * MonkeyConfig
  * version 0.1.3
- * 
+ *
  * Copyright (c) 2011-2013 Michal Wojciechowski (odyniec.net)
  */
 
@@ -30,10 +30,10 @@ function MonkeyConfig() {
         container,
         /* Darkened overlay used in the layer display mode */
         overlay;
-    
+
     /**
-     * Initialize configuration 
-     * 
+     * Initialize configuration
+     *
      * @param newData New data object
      */
     function init(newData) {
@@ -41,32 +41,36 @@ function MonkeyConfig() {
 
         if (data) {
             params = data.parameters || data.params;
-            
+
             if (data.buttons === undefined)
                 /* Set default buttons */
                 data.buttons = [ 'save', 'defaults', 'cancel' ];
-            
+
             if (data.title === undefined)
                 /*
-                 * If GM_getMetadata is available, get the name of the script
+                 * If GM_getMetadata or GM_info are available, get the name of the script
                  * and use it in the dialog title
                  */
-                if (typeof GM_getMetadata == 'function') {
-                    var scriptName = GM_getMetadata('name');
-                    data.title = scriptName + ' Configuration'; 
+                var scriptName;
+
+                if (typeof GM_getMetadata === 'function') { // Scriptish
+                    scriptName = GM_getMetadata('name');
                 }
-                else
-                    data.title = 'Configuration';
+                else if (typeof GM_info !== 'undefined') { // Greasemonkey, Tampermonkey &c.
+                    scriptName = GM_info.script.name;
+                }
+
+                data.title = (scriptName ? scriptName + ' ' : '') + 'Configuration';
         }
-        
-        /* Make a safe version of title to be used as stored value identifier */ 
+
+        /* Make a safe version of title to be used as stored value identifier */
         var safeTitle = data && data.title ?
                 data.title.replace(/[^a-zA-Z0-9]/g, '_') : '';
 
         storageKey = '_MonkeyConfig_' + safeTitle + '_cfg';
-        
+
         var storedValues;
-        
+
         /* Load stored values (if present) */
         if (GM_getValue(storageKey))
             storedValues = JSON.parse(GM_getValue(storageKey));
@@ -77,7 +81,7 @@ function MonkeyConfig() {
                 set(name, params[name].value);
             /* Check if there's a stored value for this parameter */
             else if (storedValues && storedValues[name] !== undefined)
-                set(name, storedValues[name]);            
+                set(name, storedValues[name]);
             /* Otherwise, set the default value (if defined) */
             else if (params[name]['default'] !== undefined)
                 set(name, params[name]['default']);
@@ -89,7 +93,7 @@ function MonkeyConfig() {
             /* Add an item to the User Script Commands menu */
             var caption = data.menuCommand !== true ? data.menuCommand :
                 data.title;
-            
+
             GM_registerMenuCommand(caption, function () { cfg.open(); });
         }
 
@@ -102,30 +106,30 @@ function MonkeyConfig() {
             update();
         };
     }
-    
+
     /**
      * Get the value of a configuration parameter
-     * 
+     *
      * @param name Name of the configuration parameter
      * @returns Value of the configuration parameter
      */
     function get(name) {
         return values[name];
     }
-    
+
     /**
      * Set the value of a configuration parameter
-     * 
+     *
      * @param name Name of the configuration parameter
      * @param value New value of the configuration parameter
      */
     function set(name, value) {
         values[name] = value;
     }
-    
+
     /**
      * Reset configuration parameters to default values
-     */ 
+     */
     function setDefaults() {
         for (var name in params) {
             if (typeof params[name]['default'] !== 'undefined') {
@@ -133,7 +137,7 @@ function MonkeyConfig() {
             }
         }
     }
-    
+
     /**
      * Render the configuration dialog
      */
@@ -151,7 +155,7 @@ function MonkeyConfig() {
         /* Render buttons */
         for (var button in data.buttons) {
             html += '<td>';
-            
+
             switch (data.buttons[button]) {
             case 'cancel':
                 html += '<button type="button" ' +
@@ -175,28 +179,28 @@ function MonkeyConfig() {
                     'Save</button>';
                 break;
             }
-            
+
             html += '</td>';
         }
-        
+
         html += '</tr></table></td></tr>';
-        
+
         html += "</table><div>";
 
         return html;
     }
-    
+
     /**
-     * Update the fields in the dialog to reflect current values 
+     * Update the fields in the dialog to reflect current values
      */
     function update() {
         /* Do nothing if the dialog is not currently displayed */
         if (!displayed)
             return;
-        
+
         for (var name in params) {
             var value = values[name];
-            
+
             switch (params[name].type) {
             case 'checkbox':
                 var elem = container.querySelector('[name="' + name + '"]');
@@ -212,7 +216,7 @@ function MonkeyConfig() {
                 break;
             case 'select':
                 var elem = container.querySelector('[name="' + name + '"]');
-                
+
                 if (elem.tagName.toLowerCase() == 'input') {
                     if (elem.type && elem.type == 'radio') {
                         /* Single selection with radio buttons */
@@ -226,7 +230,7 @@ function MonkeyConfig() {
                             'input[name="' + name + '"]');
 
                         for (var i = 0; i < checkboxes.length; i++)
-                            checkboxes[i].checked = 
+                            checkboxes[i].checked =
                                 (value.indexOf(checkboxes[i].value) > -1);
                     }
                 }
@@ -235,7 +239,7 @@ function MonkeyConfig() {
                         /* Multiple selection element */
                         var options = container.querySelectorAll(
                             'select[name="' + name + '"] option');
-                            
+
                         for (var i = 0; i < options.length; i++)
                             options[i].selected =
                                 (value.indexOf(options[i].value) > -1);
@@ -247,7 +251,7 @@ function MonkeyConfig() {
             }
         }
     }
-    
+
     /**
      * Save button click event handler
      */
@@ -300,22 +304,22 @@ function MonkeyConfig() {
                 break;
             }
         }
-        
+
         GM_setValue(storageKey, JSON.stringify(values));
-        
+
         close();
-        
+
         if (data.onSave)
             data.onSave(values);
     }
-    
+
     /**
-     * Cancel button click event handler 
+     * Cancel button click event handler
      */
     function cancelClick() {
         close();
     }
-    
+
     /**
      * Set Defaults button click event handler
      */
@@ -326,7 +330,7 @@ function MonkeyConfig() {
 
     /**
      * Open configuration dialog
-     * 
+     *
      * @param mode
      *            Display mode ("iframe", "layer", or "window", defaults to
      *            "iframe")
@@ -337,20 +341,20 @@ function MonkeyConfig() {
         function openDone() {
             /* Attach button event handlers */
             var button;
-            
+
             if (button = container.querySelector('#__MonkeyConfig_button_save'))
                 button.addEventListener('click', saveClick, true);
             if (button = container.querySelector('#__MonkeyConfig_button_cancel'))
                 button.addEventListener('click', cancelClick, true);
             if (button = container.querySelector('#__MonkeyConfig_button_defaults'))
                 button.addEventListener('click', defaultsClick, true);
-            
+
             displayed = true;
             update();
         }
-        
+
         switch (mode) {
-        case 'window':        
+        case 'window':
             var windowFeatures = {
                 location: 'no',
                 status: 'no',
@@ -359,59 +363,59 @@ function MonkeyConfig() {
                 width: 100,
                 height: 100
             };
-            
+
             /* Additional features may be specified as an option */
             if (options && options.windowFeatures)
                 for (var name in options.windowFeatures)
                     windowFeatures[name] = options.windowFeatures[name];
 
             var featuresArray = [];
-            
+
             for (var name in windowFeatures)
                 featuresArray.push(name + '=' + windowFeatures[name]);
 
             var win = window.open('', data.title, featuresArray.join(','));
-            
+
             /* Find head and body (then call the blood spatter analyst) */
             var head = win.document.getElementsByTagName('head')[0],
                 body = win.document.getElementsByTagName('body')[0];
 
-            head.innerHTML = '<title>' + data.title + '</title>' + 
+            head.innerHTML = '<title>' + data.title + '</title>' +
                 '<style type="text/css">' +
                 MonkeyConfig.res.stylesheets.main + '</style>';
-            
+
             body.className = '__MonkeyConfig_window';
             /* Place the rendered configuration dialog inside the window body */
             body.innerHTML = render();
 
             /* Find the container (CBAN-3489) */
             container = win.document.querySelector('.__MonkeyConfig_container');
-            
+
             /* Resize window to the dimensions of the container div */
             win.innerWidth = container.clientWidth;
             win.resizeBy(0, -win.innerHeight + container.clientHeight);
-            
+
             /* Place the window centered relative to the parent */
             win.moveBy(Math.round((window.outerWidth - win.outerWidth) / 2),
                 Math.round((window.outerHeight - win.outerHeight) / 2));
-            
+
             openWin = win;
-            
+
             openDone();
-            
+
             break;
         case 'layer':
             if (!MonkeyConfig.styleAdded) {
                 GM_addStyle(MonkeyConfig.res.stylesheets.main);
                 MonkeyConfig.styleAdded = true;
             }
-            
+
             var body = document.querySelector('body');
-            
+
             /* Create the layer element */
             openLayer = document.createElement('div');
             openLayer.className = '__MonkeyConfig_layer';
-            
+
             /* Create the overlay */
             overlay = document.createElement('div');
             overlay.className = '__MonkeyConfig_overlay';
@@ -420,26 +424,26 @@ function MonkeyConfig() {
             overlay.style.width = window.innerWidth + 'px';
             overlay.style.height = window.innerHeight + 'px';
             overlay.style.zIndex = 9999;
-            
-            body.appendChild(overlay);         
+
+            body.appendChild(overlay);
             body.appendChild(openLayer);
-            
-            /* 
+
+            /*
              * Place the rendered configuration dialog inside the layer element
              */
             openLayer.innerHTML = render();
-            
+
             /* Position the layer in the center of the viewport */
             openLayer.style.left = Math.round((window.innerWidth -
                     openLayer.clientWidth) / 2) + 'px';
             openLayer.style.top = Math.round((window.innerHeight -
                     openLayer.clientHeight) / 2) + 'px';
             openLayer.style.zIndex = 9999;
-            
+
             container = document.querySelector('.__MonkeyConfig_container');
-            
+
             openDone();
-            
+
             break;
         case 'iframe':
         default:
@@ -447,14 +451,14 @@ function MonkeyConfig() {
                 GM_addStyle(MonkeyConfig.res.stylesheets.main);
                 MonkeyConfig.styleAdded = true;
             }
-        
+
             var body = document.querySelector('body');
             var iframe = document.createElement('iframe');
-            
+
             /* Create the layer element */
             openLayer = document.createElement('div');
             openLayer.className = '__MonkeyConfig_layer';
-            
+
             /* Create the overlay */
             overlay = document.createElement('div');
             overlay.className = '__MonkeyConfig_overlay';
@@ -463,28 +467,28 @@ function MonkeyConfig() {
             overlay.style.width = window.innerWidth + 'px';
             overlay.style.height = window.innerHeight + 'px';
             overlay.style.zIndex = 9999;
-            
+
             iframe.id = '__MonkeyConfig_frame';
-            /* 
+            /*
              * Make the iframe transparent so that it remains invisible until
              * the document inside it is ready
              */
             iframe.style.opacity = 0;
             iframe.src = 'about:blank';
-            
-            /* Make the iframe seamless with no border and no scrollbars */ 
+
+            /* Make the iframe seamless with no border and no scrollbars */
             if (undefined !== iframe.frameborder)
                 iframe.frameBorder = '0';
             if (undefined !== iframe.scrolling)
                 iframe.scrolling = 'no';
             if (undefined !== iframe.seamless)
                 iframe.seamless = true;
-            
+
             /* Do the rest in the load event handler */
             iframe.addEventListener('load', function () {
                 iframe.contentDocument.body.innerHTML = render();
                 iframe.style.opacity = 1;
-                
+
                 /* Append the style to the head */
                 var head = iframe.contentDocument.querySelector('head'),
                     style = iframe.contentDocument.createElement('style');
@@ -492,10 +496,10 @@ function MonkeyConfig() {
                 style.appendChild(iframe.contentDocument.createTextNode(
                         MonkeyConfig.res.stylesheets.main));
                 head.appendChild(style);
-                
+
                 var body = iframe.contentDocument.querySelector('body');
                 body.className = '__MonkeyConfig_body';
-                
+
                 container = iframe.contentDocument
                     .querySelector('.__MonkeyConfig_container');
 
@@ -508,14 +512,14 @@ function MonkeyConfig() {
                 openLayer.style.top = Math.round((window.innerHeight -
                         openLayer.clientHeight) / 2) + 'px';
                 openLayer.style.zIndex = 9999;
-                
+
                 openDone();
             }, false);
 
             setTimeout(function () {
                 iframe.width = container.clientWidth;
                 iframe.height = container.clientHeight;
-                
+
                 /* Position the layer in the center of the viewport */
                 openLayer.style.left = Math.round((window.innerWidth -
                         openLayer.clientWidth) / 2) + 'px';
@@ -523,17 +527,17 @@ function MonkeyConfig() {
                         openLayer.clientHeight) / 2) + 'px';
                 openLayer.style.zIndex = 9999;
             }, 0);
-            
-            body.appendChild(overlay);         
+
+            body.appendChild(overlay);
             body.appendChild(openLayer);
             openLayer.appendChild(iframe);
-        
+
             break;
         }
     }
-    
+
     /**
-     * Close configuration dialog 
+     * Close configuration dialog
      */
     function close() {
         if (openWin) {
@@ -543,13 +547,13 @@ function MonkeyConfig() {
         else if (openLayer) {
             openLayer.parentNode.removeChild(openLayer);
             openLayer = undefined;
-            
+
             if (overlay) {
                 overlay.parentNode.removeChild(overlay);
                 overlay = undefined;
             }
         }
-        
+
         displayed = false;
     }
 
@@ -559,7 +563,7 @@ function MonkeyConfig() {
 /**
  * Replace double quotes with entities so that the string can be safely used
  * in a HTML attribute
- * 
+ *
  * @param string A string
  * @returns String with double quotes replaced with entities
  */
@@ -570,16 +574,16 @@ MonkeyConfig.esc = function (string) {
 MonkeyConfig.HTML = {
     '_field': function (name, options, data) {
         var html;
-        
+
         if (options.type && MonkeyConfig.HTML[options.type])
             html = MonkeyConfig.HTML[options.type](name, options, data);
         else
             return;
-        
+
         if (/\[FIELD\]/.test(options.html)) {
             html = options.html.replace(/\[FIELD\]/, html);
         }
-        
+
         return html;
     },
     '_label': function (name, options, data) {
@@ -591,8 +595,8 @@ MonkeyConfig.HTML = {
             '</label>';
     },
     'checkbox': function (name, options, data) {
-        return '<input id="__MonkeyConfig_field_' + name + 
-            '" type="checkbox" name="' + name + '" />'; 
+        return '<input id="__MonkeyConfig_field_' + name +
+            '" type="checkbox" name="' + name + '" />';
     },
     'custom': function (name, options, data) {
         return options.html;
@@ -604,7 +608,7 @@ MonkeyConfig.HTML = {
     },
     'select': function (name, options, data) {
         var choices = {}, html = '';
-        
+
         if (options.choices.constructor == Array) {
             /* options.choices is an array -- build key/value pairs */
             for (var i = 0; i < options.choices.length; i++)
@@ -621,11 +625,11 @@ MonkeyConfig.HTML = {
                 html += '<select id="__MonkeyConfig_field_' + name + '" ' +
                     'class="__MonkeyConfig_field_select" ' +
                     'name="' + name + '">';
-            
+
                 for (var value in choices)
                     html += '<option value="' + MonkeyConfig.esc(value) + '">' +
                         choices[value] + '</option>';
-                
+
                 html += '</select>';
             }
             else {
@@ -646,11 +650,11 @@ MonkeyConfig.HTML = {
                     'class="__MonkeyConfig_field_select" ' +
                     'multiple="multiple" ' +
                     'name="' + name + '">';
-                
+
                 for (var value in choices)
                     html += '<option value="' + MonkeyConfig.esc(value) + '">' +
                         choices[value] + '</option>';
-                
+
                 html += '</select>';
             }
             else {
@@ -664,7 +668,7 @@ MonkeyConfig.HTML = {
                 }
             }
         }
-        
+
         return html;
     },
     'text': function (name, options, data) {
@@ -700,7 +704,7 @@ MonkeyConfig.formatters = {
             html += '</td>';
             break;
         }
-        
+
         html += '</tr>';
 
         return html;
