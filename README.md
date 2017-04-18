@@ -9,12 +9,18 @@ Usage Example
 -------------
 
 Tell your user script to use MonkeyConfig by placing a `@require` directive in
-the metadata section:
+the metadata section alongside the `@grant` permissions it requires:
 
 ```javascript
 // ==UserScript==
 // @name           AwesomeScript
-// @require        https://raw.github.com/odyniec/MonkeyConfig/master/monkeyconfig.js
+// @description    My awesome userscript
+// @require        https://cdn.rawgit.com/odyniec/MonkeyConfig/51456c3a36b9b6febe61d1351de16466c90695d2/monkeyconfig.js
+// @grant          GM_getValue
+// @grant          GM_setValue
+// @grant          GM_addStyle
+// @grant          GM_registerMenuCommand
+// ==/UserScript==
 ```
 
 Then, call `MonkeyConfig()` to construct your configuration object:
