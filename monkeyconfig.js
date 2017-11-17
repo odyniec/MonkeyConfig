@@ -252,7 +252,7 @@ function MonkeyConfig() {
      * Save button click event handler
      */
     function saveClick() {
-        for (name in params) {
+        for (var name in params) {
             switch (params[name].type) {
             case 'checkbox':
                 var elem = container.querySelector('[name="' + name + '"]');
